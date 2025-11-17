@@ -5,6 +5,8 @@ import type { Puzzle, OperatorSymbol } from './types';
 import PuzzleBoard from './components/PuzzleBoard';
 import OperatorPad from './components/OperatorPad';
 import Controls from './components/Controls';
+import ReactConfetti from 'react-confetti';
+import { useWindowSize } from 'react-use';
 
 const WizardIcon = () => (
     <span className="text-5xl md:text-6xl" role="img" aria-label="wizard emoji">🧙</span>
@@ -17,6 +19,9 @@ const App: React.FC = () => {
     const [feedback, setFeedback] = useState<{ message: string; isCorrect: boolean | null } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [shake, setShake] = useState(false);
+    const [showConfetti, setShowConfetti] = useState(false);
+    const { width, height } = useWindowSize();
+    const [countdown, setCountdown] = useState(10);
 
     const loadPuzzles = useCallback(async () => {
         setIsLoading(true);
@@ -35,6 +40,21 @@ const App: React.FC = () => {
         setUserSolution([null, null]);
         setFeedback(null);
     }, [puzzles.length]);
+
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (showConfetti && countdown > 0) {
+            timer = setInterval(() => {
+                setCountdown(c => c - 1);
+            }, 1000);
+        } else if (showConfetti && countdown === 0) {
+            handleNewPuzzle();
+            setShowConfetti(false);
+            setCountdown(10);
+        }
+        return () => clearInterval(timer);
+    }, [showConfetti, countdown, handleNewPuzzle]);
+
 
     const handleDrop = (index: number, operator: OperatorSymbol) => {
         setUserSolution(prev => {
@@ -69,10 +89,9 @@ const App: React.FC = () => {
         const currentPuzzle = puzzles[currentPuzzleIndex];
         const result = calculateResult(currentPuzzle.numbers, userSolution);
         
-        // Using a small tolerance for floating point comparisons
         if (result !== null && Math.abs(result - currentPuzzle.result) < 0.001) {
             setFeedback({ message: 'Correct!', isCorrect: true });
-            setTimeout(handleNewPuzzle, 1500);
+            setShowConfetti(true);
         } else {
             setFeedback({ message: 'Try Again!', isCorrect: false });
             setShake(true);
@@ -107,6 +126,15 @@ const App: React.FC = () => {
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4 text-white">
+            {showConfetti && (
+                <>
+                    <ReactConfetti width={width} height={height} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-10">
+                        <p className="text-4xl text-white">New puzzle in...</p>
+                        <p className="text-8xl text-white font-bold">{countdown}</p>
+                    </div>
+                </>
+            )}
             <header className="flex items-center space-x-4 mb-4">
                  <WizardIcon />
                 <h1 className="text-5xl md:text-7xl tracking-wider">Math Wizards</h1>
